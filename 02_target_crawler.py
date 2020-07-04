@@ -45,7 +45,7 @@ for row in Row_list:
             product_info['pic'] = data["images"][0]["base_url"] + data["images"][0]["primary"]# 商品圖片
             
         if "description" in data.keys():
-            product_info['Description'] = data["description"].replace('<br /><br />', ' ') # 商品描述
+            product_info['description'] = data["description"].replace('<br /><br />', ' ') # 商品描述
             
         if "brand" in data.keys():
             product_info['brand'] = data["brand"] # 商品品牌
@@ -62,11 +62,11 @@ for row in Row_list:
             
         # at a glance(list)
         if "wellness_merchandise_attributes" in data.keys():
-            product_info['At_a_glance'] = [x['value_name'] for x in data["wellness_merchandise_attributes"]]
+            product_info['at_a_glance'] = [x['value_name'] for x in data["wellness_merchandise_attributes"]]
 
         # Hightlights(list)
         if "bullets" in data.keys():
-            product_info['Hightlights'] = data["soft_bullets"]["bullets"]
+            product_info['hightlights'] = data["soft_bullets"]["bullets"]
 
         # specifications(dict)
         spec_list = ["Contains", "Form", "State of Readiness", "Store", "Package Quantity", "Package type", "Net weight"]
@@ -78,11 +78,11 @@ for row in Row_list:
 
                     if re.match(spec_a, spec_b):
                         specifications[spec_a] = spec_b.split(": ")[1]
-            product_info['Specifications'] = specifications
+            product_info['specifications'] = specifications
 
         # reviews(list)
         if "top_reviews" in data.keys():
-            product_info['Reviews'] = [x["review_text"] for x in data["top_reviews"]]
+            product_info['reviews'] = [x["review_text"] for x in data["top_reviews"]]
 
         # 其他評分項目(dict)
         other_ratings = {}
