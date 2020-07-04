@@ -98,8 +98,6 @@ for row in Row_list:
         product_cats = soup_cat.select('span[itemprop]')
         product_info['category'] = [x.text for x in product_cats]
 
-        #product_result = json.dumps(product_info, ensure_ascii = False)
-
         print(product_info)
         product_result.append(product_info)
         print("============")
