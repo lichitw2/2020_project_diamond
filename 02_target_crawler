@@ -1,3 +1,10 @@
+import requests
+from bs4 import BeautifulSoup
+import json
+import time
+import pandas as pd
+import re
+
 df = pd.read_csv('keywords.csv')
 
 Row_list =[] 
