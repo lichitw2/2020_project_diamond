@@ -103,4 +103,4 @@ for row in Row_list[1:2]:
         print("============")
         
 with open('product_info.json', 'w') as outfile:
-    json.dump(product_result, outfile,ensure_ascii=False)
+    json.dump(product_result, outfile,ensure_ascii=False, indent=2)
