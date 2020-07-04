@@ -22,7 +22,7 @@ for row in Row_list:
         keywords = row[0]+" "+ row[1]
     print(Row_list.index(row),keywords)
 
-    url = 'https://redsky.target.com/v2/plp/search/?channel=web&count=24&default_purchasability_filter=true&facet_recovery=false&fulfillment_test_mode=grocery_opu_team_member_test&isDLP=false&keyword=Peanut+Butter+Cereal&offset=0&pageId=%2Fs%2FPeanut+Butter+Cereal&pricing_store_id=1306&store_ids=1306%2C3294%2C198%2C2775%2C2632&visitorId=0172C7C1A02802019D4E379FB6434C3C&include_sponsored_search_v2=true&ppatok=AOxT33a&platform=mobile&useragent=Mozilla%2F5.0+%28Linux%3B+Android+6.0%3B+Nexus+5+Build%2FMRA58N%29+AppleWebKit%2F537.36+%28KHTML%2C+like+Gecko%29+Chrome%2F83.0.4103.116+Mobile+Safari%2F537.36&excludes=available_to_promise_qualitative%2Cavailable_to_promise_location_qualitative&key=eb2551e4accc14f38cc42d32fbc2b2ea'
+    url = 'https://redsky.target.com/v2/plp/search/?channel=web&count=6&default_purchasability_filter=true&facet_recovery=false&fulfillment_test_mode=grocery_opu_team_member_test&isDLP=false&keyword=Peanut+Butter+Cereal&offset=0&pageId=%2Fs%2FPeanut+Butter+Cereal&pricing_store_id=1306&store_ids=1306%2C3294%2C198%2C2775%2C2632&visitorId=0172C7C1A02802019D4E379FB6434C3C&include_sponsored_search_v2=true&ppatok=AOxT33a&platform=mobile&useragent=Mozilla%2F5.0+%28Linux%3B+Android+6.0%3B+Nexus+5+Build%2FMRA58N%29+AppleWebKit%2F537.36+%28KHTML%2C+like+Gecko%29+Chrome%2F83.0.4103.116+Mobile+Safari%2F537.36&excludes=available_to_promise_qualitative%2Cavailable_to_promise_location_qualitative&key=eb2551e4accc14f38cc42d32fbc2b2ea'
     headers = {"User-agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.116 Safari/537.36"}
     
     url = urlparse(url)
