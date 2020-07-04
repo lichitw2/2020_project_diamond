@@ -92,7 +92,7 @@ for row in Row_list:
             product_info['other_ratings'] = other_ratings # 其他評分
 
         # 取catagory
-        res_cat = requests.get(product_url, headers = headers)
+        res_cat = requests.get(product_info['url'], headers = headers)
         soup_cat = BeautifulSoup(res_cat.text,'html.parser')
 
         product_cats = soup_cat.select('span[itemprop]')
@@ -105,4 +105,4 @@ for row in Row_list:
         print("============")
         
 with open('product_info.json', 'w') as outfile:
-    json.dump(product_info, outfile,ensure_ascii=False,indent=2)
+    json.dump(product_info, outfile,ensure_ascii=False)
