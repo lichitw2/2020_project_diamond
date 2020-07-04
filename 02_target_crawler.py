@@ -15,7 +15,7 @@ for index, row in df.iterrows():
 product_info = {}
 product_result = []
 
-for row in Row_list:
+for row in Row_list[1:2]:
     if type(row[1]) != str:
         keywords = row[0]
     else:
