@@ -45,7 +45,7 @@ for row in Row_list[1:2]:
             product_info['pic'] = data["images"][0]["base_url"] + data["images"][0]["primary"]# 商品圖片
             
         if "description" in data.keys():
-            product_info['description'] = data["description"].replace('<br /><br />', ' ') # 商品描述
+            product_info['Description'] = data["description"].replace('<br /><br />', ' ') # 商品描述
             
         if "brand" in data.keys():
             product_info['brand'] = data["brand"] # 商品品牌
@@ -62,11 +62,11 @@ for row in Row_list[1:2]:
             
         # at a glance(list)
         if "wellness_merchandise_attributes" in data.keys():
-            product_info['at_a_glance'] = [x['value_name'] for x in data["wellness_merchandise_attributes"]]
+            product_info['At_a_glance'] = [x['value_name'] for x in data["wellness_merchandise_attributes"]]
 
         # Hightlights(list)
         if "bullets" in data.keys():
-            product_info['hightlights'] = data["soft_bullets"]["bullets"]
+            product_info['Hightlights'] = data["soft_bullets"]["bullets"]
 
         # specifications(dict)
         spec_list = ["Contains", "Form", "State of Readiness", "Store", "Package Quantity", "Package type", "Net weight"]
@@ -78,11 +78,11 @@ for row in Row_list[1:2]:
 
                     if re.match(spec_a, spec_b):
                         specifications[spec_a] = spec_b.split(": ")[1]
-            product_info['specifications'] = specifications
+            product_info['Specifications'] = specifications
 
         # reviews(list)
         if "top_reviews" in data.keys():
-            product_info['reviews'] = [x["review_text"] for x in data["top_reviews"]]
+            product_info['Reviews'] = [x["review_text"] for x in data["top_reviews"]]
 
         # 其他評分項目(dict)
         other_ratings = {}
@@ -98,9 +98,11 @@ for row in Row_list[1:2]:
         product_cats = soup_cat.select('span[itemprop]')
         product_info['category'] = [x.text for x in product_cats]
 
+        #product_result = json.dumps(product_info, ensure_ascii = False)
+
         print(product_info)
         product_result.append(product_info)
         print("============")
         
 with open('product_info.json', 'w') as outfile:
-    json.dump(product_result, outfile,ensure_ascii=False)
+    json.dump(product_result, outfile,ensure_ascii=False=)
