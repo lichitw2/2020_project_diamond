@@ -39,7 +39,6 @@ for row in Row_list[1:2]:
             
         if 'url' in data.keys():
             product_info['url'] = "https://target.com"+ data["url"] # 商品連結
-            print(product_url)
             
         if 'images' in data.keys():
             product_info['pic'] = data["images"][0]["base_url"] + data["images"][0]["primary"]# 商品圖片
@@ -52,7 +51,6 @@ for row in Row_list[1:2]:
             
         if "average_rating" in data.keys():
             product_info['star_ratings'] = [data["average_rating"]] # 平均評分
-            # product_info['star_ratings'] = [product_ratings]
             
         if "total_reviews" in data.keys():
             product_info['star_ratings'].append(data["total_reviews"]) # 評分人數
