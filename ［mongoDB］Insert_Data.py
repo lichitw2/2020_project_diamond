@@ -23,5 +23,5 @@ def ImportData(filename):
     
 if __name__ == "__main__":
     # json檔案位置
-    filename = "product_info_NY2"
+    filename = "product_info_NY2.json"
     ImportData(filename)
