@@ -5,7 +5,7 @@ import json
 def ImportData(filename):
     # 讀取json檔案
     with open(filename,'r', encoding='utf-8') as data:
-    result_data = json.load(data)
+        result_data = json.load(data)
     
     # 建立資料庫連線
     client = pymongo.MongoClient("localhost", 27017)
