@@ -8,7 +8,7 @@ def ImportData(filename):
         result_data = json.load(data)
     
     # 建立資料庫連線
-    client = pymongo.MongoClient("localhost", 27017)
+    client = pymongo.MongoClient("mongodb", 27017)
     
     # 建立／選擇database
     db = client.ProductRawData
