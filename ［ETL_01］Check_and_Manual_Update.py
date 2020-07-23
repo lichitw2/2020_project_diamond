@@ -54,7 +54,6 @@ if __name__ == "__main__":
     with open('product_info_NY2_all.json', 'r', encoding="utf-8") as r:
         result = json.load(r)
         
-        
     BrandCheck(result)
     PriceCheck(result)
     CategoryCheck(result)
