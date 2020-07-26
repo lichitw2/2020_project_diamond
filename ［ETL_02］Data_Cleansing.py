@@ -4,6 +4,7 @@ import re
 import pandas as pd
 import requests
 
+#test
 def NameETL(product):
     product_name = BeautifulSoup(product.get("name"), 'html.parser')
     product['name'] = str(product_name).replace("&amp;", "&").replace('™', '').replace('”', '"').replace('’', '\'').replace('\s',"").strip()
