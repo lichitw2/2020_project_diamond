@@ -34,7 +34,8 @@ def PriceCheck(result):
 def CategoryCheck(result):
     cat_count = 0
     for product in result:
-        if len(product.get('category')) == 0:
+        if product.get('category') == 'NA':
+        #if len(product.get('category')) == 0:
             cat_count += 1
             print(product['keyword'])
             print(product['name'])
