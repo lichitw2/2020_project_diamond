@@ -4,13 +4,13 @@ import re
 import pandas as pd
 import requests
 
-#test12331413
 def NameETL(product):
     product_name = BeautifulSoup(product.get("name"), 'html.parser')
     product['name'] = str(product_name).replace("&amp;", "&").replace('™', '').replace('”', '"').replace('’', '\'').replace('\s',"").strip()
     return product['name']
-    
+
 def PriceETL(product):
+
     if '-' in product['price']:
         x = product['price'].replace('$','').replace(',','').split(' - ')
         product['price'] = "{:.2f}".format((float(x[0])+float(x[1]))/2)
@@ -68,14 +68,26 @@ def Specifications(product):
         
 def Description(product):
     if product['description'] != 'NA':
-        product['description'] = TextClean(product['description'])
-        if "PACKAGING MAY VARY BY LOCATION" or "½" in product['description'] :
-            product['description'] = product['description'].replace("PACKAGING MAY VARY BY LOCATION","").replace("½","half")
-        return product['description']
+        text = product['description'].strip()
+        # define desired replacements
+        rep = {
+            '*': "", 
+            '\n': " ",
+            '●':"", 
+            '½':'half',
+            '|':'', 
+            'PACKAGING MAY VARY BY LOCATION':"",
+            'Packaging may vary by location.':''
+        } 
+        
+        rep = dict((re.escape(k), v) for k, v in rep.items()) 
+        pattern = re.compile("|".join(rep.keys()))
+        product['description'] = pattern.sub(lambda m: rep[re.escape(m.group(0))], text)
+    return product['description']
 
 def ReviewTextClean(text):
-    sentence = "This review was collected as part of a promotion."
-    text = text.replace("*","").replace("❁","").replace("🤔","").replace(sentence,"").replace("™","").replace('\s',"")
+    text = re.sub('\[.*promotion\.\]','', text)
+    text = text.replace("*","").replace("❁","").replace("🤔","").replace("™","").replace('\s',"")
     text = re.sub(r"w/o\w*","without",text)
     text = re.sub(r"w/","with",text)
     text = re.sub(r"❤️+","❤️",text)
