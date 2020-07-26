@@ -1,26 +1,19 @@
-import json
-from bs4 import BeautifulSoup
-import re
-import pandas as pd
-import requests
-
 def NameETL(product):
     product_name = BeautifulSoup(product.get("name"), 'html.parser')
     product['name'] = str(product_name).replace("&amp;", "&").replace('™', '').replace('”', '"').replace('’', '\'').replace('\s',"").strip()
     return product['name']
 
 def PriceETL(product):
+    tcin = product['url'].rsplit("-")[-1]
 
+    url = 'https://redsky.target.com/web/pdp_location/v1/tcin/{}?pricing_store_id={}&key=eb2551e4accc14f38cc42d32fbc2b2ea'.format(tcin, store_id)
+    headers = {"User-agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.116 Safari/537.36"}
+    
     if '-' in product['price']:
         x = product['price'].replace('$','').replace(',','').split(' - ')
         product['price'] = "{:.2f}".format((float(x[0])+float(x[1]))/2)
-        
+    
     elif "See low price in cart" in product['price']:
-        tcin = product['url'].rsplit("-")[-1]
-        
-        url = 'https://redsky.target.com/web/pdp_location/v1/tcin/{}?pricing_store_id=3277&key=eb2551e4accc14f38cc42d32fbc2b2ea'.format(tcin)
-        headers = {"User-agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.116 Safari/537.36"}
-
         res = requests.get(url, headers=headers)
         json_res = json.loads(res.text)
         json_data = list(json_res.values())
@@ -29,17 +22,33 @@ def PriceETL(product):
             product['price'] = json_data[3][-1]['price']['current_retail']
         else:
             product['price'] = json_data[1].get('current_retail')
+    
+    elif product['price'] == "NA":
+        res = requests.get(url, headers=headers)
+        json_res = json.loads(res.text)
+        json_data = list(json_res.values())
+        product['price'] = json_data[1].get('current_retail')
+             
+    elif product['price'] == "Price Varies":
+        product['price'] == "Price Varies"
+
     else:
         product['price'] = product['price'][1:]
-        
+
     return product['price']
+
+def CategoryFillNa(product):
+    if product['category'] == 'NA':
+        df_cat = pd.DataFrame(result)
+        df_cat2 = df[df['keyword'] == product['keyword']]
+        product['category'] = df_cat2['category'].value_counts().keys()[0]
+        return product['category']
     
 def Ratings(product):
     product["star_ratings"][1] = float(product["star_ratings"][1])
     product["star_ratings"] = tuple(product["star_ratings"])
     return product["star_ratings"]
 
-# text cleansing_for general use
 def TextClean(text):
     return text.replace("\n","").replace("●"," ").replace("*"," ").replace("｜"," ").replace("\\"," ").replace("™","").replace('\r', '').strip("-")
 
@@ -77,13 +86,14 @@ def Description(product):
             '½':'half',
             '|':'', 
             'PACKAGING MAY VARY BY LOCATION':"",
-            'Packaging may vary by location.':''
+            'Packaging may vary by location.':'',
+            '\r':""
         } 
         
         rep = dict((re.escape(k), v) for k, v in rep.items()) 
         pattern = re.compile("|".join(rep.keys()))
         product['description'] = pattern.sub(lambda m: rep[re.escape(m.group(0))], text)
-    return product['description']
+        return product['description']
 
 def ReviewTextClean(text):
     text = re.sub('\[.*promotion\.\]','', text)
@@ -105,6 +115,7 @@ def main():
     for index, product in enumerate(result):
         NameETL(product)
         PriceETL(product)
+        CategoryFillNa(product)
         Ratings(product)
         Highlights(product)
         Specifications(product)
@@ -119,4 +130,6 @@ def main():
 if __name__ == "__main__":    
     with open('product_info_NY2_all.json', 'r', encoding="utf-8") as r:
         result = json.load(r)
+
+    store_id = 3277
     main()
