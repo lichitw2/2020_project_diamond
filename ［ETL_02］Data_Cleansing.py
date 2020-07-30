@@ -1,3 +1,7 @@
+import requests, json, re
+from bs4 import BeautifulSoup
+import pandas as pd
+
 def NameETL(product):
     product_name = BeautifulSoup(product.get("name"), 'html.parser')
     product['name'] = str(product_name).replace("&amp;", "&").replace('™', '').replace('”', '"').replace('’', '\'').replace('\s',"").strip()
@@ -38,10 +42,21 @@ def PriceETL(product):
     return product['price']
 
 def CategoryFillNa(product):
-    if product['category'] == 'NA':
-        df_cat = pd.DataFrame(result)
-        df_cat2 = df[df['keyword'] == product['keyword']]
-        product['category'] = df_cat2['category'].value_counts().keys()[0]
+    # 若category為NA或空list，則嘗試重新爬網取得
+    if (product['category'] == 'NA') or (len(product['category']) == 0):
+        url = product['url']
+        headers = {"User-agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.116 Safari/537.36"}
+            
+        res = requests.get(url, headers=headers)
+        soup = BeautifulSoup(res.text, 'html.parser')
+        product['category'] = [x.text for x in soup.select('a.Link-sc-1khjl8b-0.jNuccf')[1:]]
+        
+        # 若category依然為空值，則填入既有資料中相同keyword者的category眾值（若結果依然為空，後續再人為判斷處理方式）
+        if (product['category'] == 'NA') or (len(product['category']) == 0):
+            df_cat = pd.DataFrame(result)
+            df_cat2 = df_cat[df_cat['keyword'] == product['keyword']]
+            product['category'] = df_cat2['category'].value_counts().keys()[0]
+
         return product['category']
     
 def Ratings(product):
@@ -123,13 +138,13 @@ def main():
         Review(product)
         data.append(product)
         print(index,' completed')
-
+              
     df = pd.DataFrame(data)
-    df.to_csv('product_info_NY2_clensend.csv', encoding='utf-8',index = False)
+    df.to_csv('product_info_NY2_clensend.csv', encoding='utf-8',index = False) #（1）請修改csv檔案路徑 
         
-if __name__ == "__main__":    
-    with open('product_info_NY2_all.json', 'r', encoding="utf-8") as r:
+if __name__ == "__main__":
+    with open('Raw_Data/product_info_NY2.json', 'r', encoding="utf-8") as r: #（2）請修改檔案路徑
         result = json.load(r)
-
-    store_id = 3277
+      
+    store_id = 3277  # (3）請修改store_id 
     main()
