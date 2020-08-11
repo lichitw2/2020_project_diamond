@@ -153,9 +153,9 @@ def process_postback_event(event):
         # 2. 從分析結果/模型獲得推薦給舊顧客的product_id，並至資料庫query商品資料
         
         # 3. query後得到推薦商品資訊(商品資訊schema參見"./ES_product_data_schema.json")
-        A = res = es.get(index="product_test",id=1)['_source'] #id為實際product_id
-        B = res = es.get(index="product_test",id=2)['_source']
-        C = res = es.get(index="product_test",id=3)['_source']
+        A = es.get(index="product_test",id=1)['_source'] #id為實際product_id
+        B = es.get(index="product_test",id=2)['_source']
+        C = es.get(index="product_test",id=3)['_source']
         
         response = [
             {
@@ -190,9 +190,9 @@ def process_postback_event(event):
         )
         
     if 'tag' in query_string_dict: # 新顧客
-        A = res = es.get(index="product_test",id=1)['_source'] #id為實際product_id
-        B = res = es.get(index="product_test",id=2)['_source']
-        C = res = es.get(index="product_test",id=3)['_source']
+        A = es.get(index="product_test",id=1)['_source'] #id為實際product_id
+        B = es.get(index="product_test",id=2)['_source']
+        C = es.get(index="product_test",id=3)['_source']
         
         response = [{
             "type": "text",
