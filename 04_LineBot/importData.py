@@ -53,16 +53,15 @@ def create_index(es, index_name):
 
 def insert_doc(es, index_name ,doc):
     try:
-        result = es.index(index=index_name, body=doc)
+        es.index(index=index_name, body=doc)
     except Exception as ex:
         print(str(ex))
         print(doc)
-    return result
 
 def search(es, index_name, query):
     result = es.search(index=index_name, body=query)
     items = result['hits']['hits']
-    return items
+    return items 
 
 if __name__ == '__main__':
     
@@ -73,24 +72,24 @@ if __name__ == '__main__':
     with open("product_data.json",'r') as f:
         result = json.load(f)
         for doc in result:
-            res = insert_doc(es, "product", doc)
+            insert_doc(es, "product", doc)
     
     # 嘗試用 birthday gift 當作關鍵字查詢商品
-    query = {
-        "query": {
-            "match": {
-                "product_info": {
-                    "query": "birthday gift"
-                }
-            }
-        }
-    }
+    #query = {
+        #"query": {
+            #"match": {
+                #"product_info": {
+                    #"query": "birthday gift"
+                #}
+            #}
+        #}
+    #}
     
     # 打印搜尋到的 product_id 和 LineBot 回覆所需的資訊格式
-    items = search(es, "test", query)
-    for item in items:
-        print(item['_source']['product_id'])
-        print(item['_source']['info_for_line'])
-        print('\n')
+    #items = search(es, "test", query)
+    #for item in items:
+        #print(item['_source']['product_id'])
+        #print(item['_source']['info_for_line'])
+        #print('\n')
         
     es.close()

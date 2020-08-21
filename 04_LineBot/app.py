@@ -9,6 +9,7 @@ from linebot.models import (FollowEvent)
 from linebot.models import (MessageEvent, TextMessage)
 
 from importData import connect_elasticsearch, search
+import pandas as pd
 
 from linebot.models import (PostbackEvent)
 from urllib.parse import parse_qs 
@@ -28,6 +29,14 @@ handler = WebhookHandler(secretFileContentJson.get("secret_key"))
 
 # 建立 Elasticsearch 連線
 es = connect_elasticsearch()
+
+# 讀取所需資料檔
+model_ALS_rank = pd.read_csv("model_ALS_rank.csv")
+model_itembased_rank = pd.read_csv("model_itembased_rank.csv")
+alsResult_allPrediction = pd.read_csv("alsResult_allPrediction.csv")
+
+itembased_product_list = model_itembased_rank['product_id'].value_counts().keys().to_list()
+avg_rating = alsResult_allPrediction.groupby("product_id")["prediction"].mean().sort_values(ascending=False)[:10].keys()
 
 def detect_json_array_to_new_message_array(fileName):
     
@@ -112,8 +121,7 @@ def process_text_message(event):
     
     # elif event.message.text == "Buy Bithday Persent":
         
-    
-    elif event.message.text not in ["Search Products","Special Price","Buy Bithday Persent"]:
+    elif event.message.text not in ["Search Products","Special Price","Buy Birthday Present"]:
         keywords = event.message.text
         
         query = {
@@ -126,8 +134,8 @@ def process_text_message(event):
             }
         }
         
-        items = search(es, "test", query)
-        #print(items)
+        items = search(es, "product", query)
+
         item_list = []
         for item in items:
             item_list.append(item['_source']['info_for_line'])
@@ -137,7 +145,137 @@ def process_text_message(event):
         response = [
             {
                 "type": "text",
-                "text": "Do you mean..."
+                "text": "Results for ' "+ keywords + " '..."
+            },{
+                "type": "template",
+                "altText": "this is a carousel template",
+                "template": {
+                    "type": "carousel",
+                    "actions": [],
+                    "columns": item_list
+                }
+            }]
+            
+        result_message_array =[]
+        
+        for res in response:
+            
+            message_type = res.get('type')
+            
+            if message_type == 'text':
+                result_message_array.append(TextSendMessage.new_from_json_dict(res))
+            
+            elif message_type == 'template':
+                result_message_array.append(TemplateSendMessage.new_from_json_dict(res))
+        
+        line_bot_api.reply_message(event.reply_token, result_message_array)        
+
+# Postback Event處理
+@handler.add(PostbackEvent)
+def process_postback_event(event):
+
+    query_string_dict = parse_qs(event.postback.data)
+
+    print(query_string_dict)
+    if ('folder' in query_string_dict) and (query_string_dict.get('folder')[0]=='Special Products'):
+
+        user_profile = line_bot_api.get_profile(event.source.user_id)
+        user_profile_dict = vars(user_profile)
+        print(user_profile_dict)
+        
+        user_id = user_profile_dict.get('user_id')
+        
+        query_id = model_ALS_rank[model_ALS_rank['user_id']==148].loc[0][1:].to_list() # 148替換成假資料line_id(user_id)
+        
+        query = {
+            "query": {
+                "bool": {
+                    "should": [
+                        { "match": { "product_id": { "query": query_id[0]} } },
+                        { "match": { "product_id": { "query": query_id[1]} } },
+                        { "match": { "product_id": { "query": query_id[2]} } },
+                        { "match": { "product_id": { "query": query_id[3]} } },
+                        { "match": { "product_id": { "query": query_id[4]} } },
+                    ]
+                }
+            }
+        }
+        
+        items = search(es, "test2", query)
+        
+        item_list = []
+        for item in items:
+            item_list.append(item['_source']['info_for_line'])
+            if len(item_list)==5:
+                break
+        
+        response = [
+            {
+                "type": "text",
+                "text": "Buy these goods with SPECIAL PRICE! Enter 'diamond_coupon' when check out!"
+            },{
+                "type": "template",
+                "altText": "this is a carousel template",
+                "template": {
+                    "type": "carousel",
+                    "actions": [],
+                    "columns": item_list
+                }
+            }]
+               
+        result_message_array =[]
+        
+        for res in response:
+            
+            message_type = res.get('type')
+            
+            if message_type == 'text':
+                result_message_array.append(TextSendMessage.new_from_json_dict(res))
+            
+            elif message_type == 'template':
+                result_message_array.append(TemplateSendMessage.new_from_json_dict(res))
+        
+        line_bot_api.reply_message(event.reply_token, result_message_array)
+    
+    if 'id1' in query_string_dict:
+        product_id = int(query_string_dict.get('id1')[0])
+        
+        # ALS preditons average
+        if (product_id in itembased_product_list) == True:
+            query_id = model_itembased_rank[model_itembased_rank['product_id']== product_id].iloc[0,1:].to_list()
+            print("item-based")
+
+        # item-based
+        else:
+            query_id = avg_rating
+            print("ALS preditons average")
+
+        query = {
+            "query": {
+                "bool": {
+                    "should": [
+                        { "match": { "product_id": { "query": query_id[0]} } },
+                        { "match": { "product_id": { "query": query_id[1]} } },
+                        { "match": { "product_id": { "query": query_id[2]} } },
+                        { "match": { "product_id": { "query": query_id[3]} } },
+                        { "match": { "product_id": { "query": query_id[4]} } },
+                    ]
+                }
+            }
+        }
+        
+        items = search(es, "test2", query)
+        
+        item_list = []
+        for item in items:
+            item_list.append(item['_source']['info_for_line'])
+            if len(item_list)==5:
+                break
+        
+        response = [
+            {
+                "type": "text",
+                "text": "You may also like ..."
             },{
                 "type": "template",
                 "altText": "this is a carousel template",
@@ -148,7 +286,6 @@ def process_text_message(event):
                 }
             }]
         
-        # 4. 將product資訊寫成json（result_message_array =[]）        
         result_message_array =[]
         
         for res in response:
@@ -161,60 +298,7 @@ def process_text_message(event):
             elif message_type == 'template':
                 result_message_array.append(TemplateSendMessage.new_from_json_dict(res))
         
-        line_bot_api.reply_message(event.reply_token, result_message_array)     
-
-# Postback Event處理
-@handler.add(PostbackEvent)
-def process_postback_event(event):
-
-    query_string_dict = parse_qs(event.postback.data)
-
-    print(query_string_dict)
-    if 'folder' in query_string_dict: # 舊顧客
-        
-        # 1.提取user_id，進入資料庫抓消費資料
-        user_profile = line_bot_api.get_profile(event.source.user_id)
-        user_profile_dict = vars(user_profile)
-        user_id = user_profile_dict.get('user_id')
-
-        # 2. 從分析結果/模型獲得推薦給舊顧客的product_id，並至資料庫query商品資料
-        
-        # 3. query後得到推薦商品資訊(商品資訊schema參見"./ES_product_data_schema.json")
-        A = es.get(index="product_test",id=1)['_source'] #id為實際product_id
-        B = es.get(index="product_test",id=2)['_source']
-        C = es.get(index="product_test",id=3)['_source']
-        
-        response = [
-            {
-                "type": "text",
-                "text": "登登登，最新一期的好康A推薦在這裡！輸入折扣碼：diamond 即可享限時優惠喔！"
-            },{
-                "type": "template",
-                "altText": "this is a carousel template",
-                "template": {
-                    "type": "carousel",
-                    "actions": [],
-                    "columns": [A,B,C]
-                }
-            }]
-        
-        # 4. 將最終product資訊回覆給使用者      
-        result_message_array =[]
-        
-        for res in response:
-            
-            message_type = res.get('type')
-            
-            if message_type == 'text':
-                result_message_array.append(TextSendMessage.new_from_json_dict(res))
-            
-            elif message_type == 'template':
-                result_message_array.append(TemplateSendMessage.new_from_json_dict(res))
-        
-        line_bot_api.reply_message(
-            event.reply_token,
-            result_message_array
-        )
+        line_bot_api.reply_message(event.reply_token, result_message_array)
         
 if __name__ == "__main__":
     app.run(host='0.0.0.0')
