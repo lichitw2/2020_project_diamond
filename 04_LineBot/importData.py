@@ -4,7 +4,7 @@ import json
 
 def connect_elasticsearch():
     es = None
-    es = Elasticsearch(['localhost:9200'])
+    es = Elasticsearch(['es01:9200'])
     if es.ping():
         print("Connected to Elasticsearch!")
     else:
