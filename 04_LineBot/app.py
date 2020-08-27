@@ -2,6 +2,10 @@ from flask import Flask, request, abort # 引用Web Server套件
 from linebot import LineBotApi, WebhookHandler # 從linebot 套件包裡引用 LineBotApi 與 WebhookHandler 類別
 from linebot.exceptions import InvalidSignatureError # 引用無效簽章錯誤
 
+import gensim
+from gensim.test.utils import datapath
+from gensim.models import KeyedVectors
+
 from linebot.models import TextSendMessage
 from linebot.models import MessageEvent, TextMessage
 from linebot.models.template import *
@@ -25,6 +29,11 @@ avg_rating = alsResult_allPrediction.groupby("product_id")["prediction"].mean().
 
 # 建立 Elasticsearch 連線
 es = connect_elasticsearch()
+
+#載入模型
+model = gensim.models.Word2Vec.load("product2vec.model")
+#載入向量模型
+wv_from_bin = KeyedVectors.load_word2vec_format("product2vec.model.bin", binary=True)
 
 # 載入基礎設定檔
 secretFileContentJson=json.load(open("./line_secret_key",'r',encoding='utf8'))
@@ -143,7 +152,7 @@ def process_postback_event(event):
         print(user_profile_dict)
         
         user_id = user_profile_dict.get('user_id')
-        query_id = model_ALS_rank[model_ALS_rank['user_id']==148].loc[0][1:].to_list() # 148替換成假資料line_id
+        query_id = model_ALS_rank[model_ALS_rank['user_id']==206198].loc[0][1:].to_list() # 148替換成假資料line_id
         
         query = {
             "query": {
@@ -153,7 +162,7 @@ def process_postback_event(event):
                         { "match": { "product_id": { "query": query_id[1]} } },
                         { "match": { "product_id": { "query": query_id[2]} } },
                         { "match": { "product_id": { "query": query_id[3]} } },
-                        { "match": { "product_id": { "query": query_id[4]} } },
+                        { "match": { "product_id": { "query": query_id[4]} } }
                     ]
                 }
             }
@@ -212,7 +221,7 @@ def process_postback_event(event):
                         { "match": { "product_id": { "query": query_id[1]} } },
                         { "match": { "product_id": { "query": query_id[2]} } },
                         { "match": { "product_id": { "query": query_id[3]} } },
-                        { "match": { "product_id": { "query": query_id[4]} } },
+                        { "match": { "product_id": { "query": query_id[4]} } }
                     ]
                 }
             }
@@ -284,13 +293,16 @@ def process_postback_event(event):
         if (product_id in itembased_product_list) == True:
             query_id = model_itembased_rank[model_itembased_rank['product_id']== product_id].iloc[0,1:].to_list()
             print("item-based")
-            if len(query_id) < 5:
-                query_id += avg_rating
+            print(query_id)
+            if ( 0 in query_id) == True:
+                query_id = [product for product in query_id if (product != 0)]+ avg_rating  # ALS preditons average
                 print(query_id)
+                print("item-based+ALS")
 
-        # ALS preditons average
+        # word2vec 
         else:
-            query_id = avg_rating
+            query_id = [int(product[0]) for product in model.wv.most_similar(str(product_id))]
+            print('word2vec')
 
         query = {
             "query": {
@@ -300,7 +312,7 @@ def process_postback_event(event):
                         { "match": { "product_id": { "query": query_id[1]} } },
                         { "match": { "product_id": { "query": query_id[2]} } },
                         { "match": { "product_id": { "query": query_id[3]} } },
-                        { "match": { "product_id": { "query": query_id[4]} } },
+                        { "match": { "product_id": { "query": query_id[4]} } }
                     ]
                 }
             }
