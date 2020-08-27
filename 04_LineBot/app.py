@@ -20,9 +20,9 @@ import json
 
 
 # 讀取分析結果
-model_ALS_rank = pd.read_csv("./material/model_ALS_rank.csv")
-model_itembased_rank = pd.read_csv("./material/model_itembased_rank.csv")
-alsResult_allPrediction = pd.read_csv("./material/alsResult_allPrediction.csv")
+model_ALS_rank = pd.read_csv("./model_results/model_ALS_rank.csv")
+model_itembased_rank = pd.read_csv("./model_results/model_itembased_rank.csv")
+alsResult_allPrediction = pd.read_csv("./model_results/alsResult_allPrediction.csv")
 
 itembased_product_list = model_itembased_rank['product_id'].value_counts().keys().to_list()
 avg_rating = alsResult_allPrediction.groupby("product_id")["prediction"].mean().sort_values(ascending=False)[:10].keys()
@@ -31,9 +31,9 @@ avg_rating = alsResult_allPrediction.groupby("product_id")["prediction"].mean().
 es = connect_elasticsearch()
 
 #載入模型
-model = gensim.models.Word2Vec.load("product2vec.model")
+model = gensim.models.Word2Vec.load("./model_results/product2vec.model")
 #載入向量模型
-wv_from_bin = KeyedVectors.load_word2vec_format("product2vec.model.bin", binary=True)
+wv_from_bin = KeyedVectors.load_word2vec_format("./model_results/product2vec.model.bin", binary=True)
 
 # 載入基礎設定檔
 secretFileContentJson=json.load(open("./line_secret_key",'r',encoding='utf8'))
@@ -90,7 +90,7 @@ def process_text_message(event):
     keywords = event.message.text
 
     query = {"query": {"match": {"product_info": {"query": keywords}}}}
-    items = search(es, "product", query)
+    items = search(es, "products", query)
 
     item_list = []
     for item in items:
@@ -227,7 +227,7 @@ def process_postback_event(event):
             }
         }
         
-        items = search(es, "product", query)
+        items = search(es, "products", query)
         
         item_list = []
         for item in items:
@@ -318,7 +318,7 @@ def process_postback_event(event):
             }
         }
         
-        items = search(es, "product", query)
+        items = search(es, "products", query)
         
         item_list = []
         for item in items:
