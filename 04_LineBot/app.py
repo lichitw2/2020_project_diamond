@@ -17,7 +17,7 @@ from urllib.parse import parse_qs
 from importData import connect_elasticsearch, search, insert_doc
 import pandas as pd
 import json
-
+import time
 
 # 讀取分析結果
 model_ALS_rank = pd.read_csv("./model_results/model_ALS_rank.csv")
@@ -30,10 +30,62 @@ avg_rating = alsResult_allPrediction.groupby("product_id")["prediction"].mean().
 # 建立 Elasticsearch 連線
 es = connect_elasticsearch()
 
+# 讀取資料庫熱門商品
+hot_query = {"aggs": {"product": {"terms": { "field": "product_id" }}}}
+hot_result = es.search(index='orders', body=hot_query)["aggregations"]['product']['buckets']
+hot_query_id = [item.get('key') for item in hot_result] 
+
 #載入模型
 model = gensim.models.Word2Vec.load("./model_results/product2vec.model")
 #載入向量模型
 wv_from_bin = KeyedVectors.load_word2vec_format("./model_results/product2vec.model.bin", binary=True)
+
+# 訊息回覆function
+def general_carousel_query(es, query_id):
+    # 產生query列表
+    tmp = [{"match": {"product_id": {"query": query_id[i]}}} for i in range(10)]
+    query = {"query": {"bool": {"should": tmp}}}
+    
+    # query商品    
+    items = search(es, "products", query)    
+    item_list = [item['_source']['info_for_line'] for item in items]
+    return item_list
+
+def text_carousel_reply(event, text_message, item_list):
+    if len(item_list) != 0:
+        response = [
+            {
+                "type": "text",
+                "text": text_message
+            },{
+                "type": "template",
+                "altText": "this is a carousel template",
+                "template": {
+                    "type": "carousel",
+                    "actions": [],
+                    "columns": item_list
+                }
+            }]
+    else:
+        response = [
+            {
+                "type": "text",
+                "text": text_message
+            }
+        ]
+        
+    result_message_array =[]
+
+    for res in response:
+        message_type = res.get('type')
+
+        if message_type == 'text':
+            result_message_array.append(TextSendMessage.new_from_json_dict(res))
+        elif message_type == 'template':
+            result_message_array.append(TemplateSendMessage.new_from_json_dict(res))
+
+    line_bot_api.reply_message(event.reply_token, result_message_array)
+
 
 # 載入基礎設定檔
 secretFileContentJson=json.load(open("./line_secret_key",'r',encoding='utf8'))
@@ -95,8 +147,6 @@ def process_text_message(event):
     item_list = []
     for item in items:
         item_list.append(item['_source']['info_for_line'])
-        if len(item_list)==5:
-            break
 
     response = [
         {
@@ -131,240 +181,118 @@ def process_text_message(event):
 def process_postback_event(event):
 
     query_string_dict = parse_qs(event.postback.data)
-
     print(query_string_dict)
     
+    # (1)商品關鍵字搜尋
     if ('button' in query_string_dict) and (query_string_dict.get('button')[0]=='search'):
-        response = [
-             {
-                 "type": "text",
-                 "text": "Let’s find something for you! What’s on your list today?"
+        response = [{
+            "type": "text",
+            "text": "Let’s find something for you! What’s on your list today?"
              }]
         
         result_message_array =[TextSendMessage.new_from_json_dict(response[0])]
         line_bot_api.reply_message(event.reply_token, result_message_array)
         
-    
+    # (2)使用者專屬優惠
     elif ('button' in query_string_dict) and (query_string_dict.get('button')[0]=='coupon'):
 
-        user_profile = line_bot_api.get_profile(event.source.user_id)
-        user_profile_dict = vars(user_profile)
-        print(user_profile_dict)
+        #user_profile = line_bot_api.get_profile(event.source.user_id)
+        #user_profile_dict = vars(user_profile)
+        #user_id = user_profile_dict.get('user_id')
         
-        user_id = user_profile_dict.get('user_id')
-        query_id = model_ALS_rank[model_ALS_rank['user_id']==206198].loc[0][1:].to_list() # 148替換成假資料line_id
+        query_id = model_ALS_rank[model_ALS_rank['user_id']==99522].loc[0:].iloc[0].to_list()
+        text_message = "20% off items only for you! Use your ‘Diamond is the BEST -20’ coupon when checking out to get your discount 😚"
         
-        query = {
-            "query": {
-                "bool": {
-                    "should": [
-                        { "match": { "product_id": { "query": query_id[0]} } },
-                        { "match": { "product_id": { "query": query_id[1]} } },
-                        { "match": { "product_id": { "query": query_id[2]} } },
-                        { "match": { "product_id": { "query": query_id[3]} } },
-                        { "match": { "product_id": { "query": query_id[4]} } }
-                    ]
-                }
-            }
-        }
-        
-        items = search(es, "product", query)
-        
-        item_list = []
-        for item in items:
-            item_list.append(item['_source']['info_for_line'])
-            if len(item_list)==5:
-                break
-        
-        response = [
-            {
-                "type": "text",
-                "text": "20% off items only for you! Use your ‘Diamond is the BEST -20’ coupon when checking out to get your discount 😚"
-            },{
-                "type": "template",
-                "altText": "this is a carousel template",
-                "template": {
-                    "type": "carousel",
-                    "actions": [],
-                    "columns": item_list
-                }
-            }]
-              
-        result_message_array =[]
-        
-        for res in response:
-            
-            message_type = res.get('type')
-            
-            if message_type == 'text':
-                result_message_array.append(TextSendMessage.new_from_json_dict(res))
-            elif message_type == 'template':
-                result_message_array.append(TemplateSendMessage.new_from_json_dict(res))
-        
-        line_bot_api.reply_message(event.reply_token, result_message_array)
+        item_list = general_carousel_query(es, query_id)
+        text_carousel_reply(event, text_message, item_list)
     
-    # 熱銷商品    
+    # (3)熱銷商品    
     elif ('button' in query_string_dict) and (query_string_dict.get('button')[0]=='hot'):
         
-        query = {"aggs": {"product": {"terms": { "field": "product_id" }}}}
-        result = es.search(index='orders', body=query)["aggregations"]['product']['buckets']
-
-        query_id =[]
-        for item in result:
-            query_id.append(item.get('key'))
+        #query = {"aggs": {"product": {"terms": { "field": "product_id" }}}}
+        #result = es.search(index='orders', body=query)["aggregations"]['product']['buckets']
+        #hot_query_id = [item.get('key') for item in result]
+        
+        query_id = hot_query_id 
+        text_message = "We’ve listed the most popular products for you, please take a look!"
+        
+        item_list = general_carousel_query(es, query_id)
+        text_carousel_reply(event, text_message, item_list)
             
-        query = {
-            "query": {
-                "bool": {
-                    "should": [
-                        { "match": { "product_id": { "query": query_id[0]} } },
-                        { "match": { "product_id": { "query": query_id[1]} } },
-                        { "match": { "product_id": { "query": query_id[2]} } },
-                        { "match": { "product_id": { "query": query_id[3]} } },
-                        { "match": { "product_id": { "query": query_id[4]} } }
-                    ]
-                }
-            }
-        }
-        
-        items = search(es, "products", query)
-        
-        item_list = []
-        for item in items:
-            item_list.append(item['_source']['info_for_line'])
-            if len(item_list)==5:
-                break
-        
-        response = [
-            {
-                "type": "text",
-                "text": "We’ve listed the most popular products for you, please take a look!"
-            },{
-                "type": "template",
-                "altText": "this is a carousel template",
-                "template": {
-                    "type": "carousel",
-                    "actions": [],
-                    "columns": item_list
-                }
-            }]
-        
-        result_message_array =[]
-        
-        for res in response:
-            
-            message_type = res.get('type')
-            
-            if message_type == 'text':
-                result_message_array.append(TextSendMessage.new_from_json_dict(res))
-            elif message_type == 'template':
-                result_message_array.append(TemplateSendMessage.new_from_json_dict(res))
-        
-        line_bot_api.reply_message(event.reply_token, result_message_array)
-        
-    # Shopping List
+    # (4)Shopping List
     elif ('button' in query_string_dict) and (query_string_dict.get('button')[0]=='list'):
         user_profile = line_bot_api.get_profile(event.source.user_id)
         user_profile_dict = vars(user_profile)
         
         user_id = user_profile_dict.get('user_id')
         
-        query = {"query": {"match": {"user_id": {"query": user_id}}}}
-        items = search(es, "shopping_list", query)
+        query = {"size": 100,"query": {"match": {"user_id": {"query": user_id}}}}
+        items = search(es, 'shopping_list', query)
+        item_list = [item['_source']['info_for_line'] for item in items]
         
-        item_list = ''
-        for index, item in enumerate(items):
-            item_list += '({}) {}\n'.format(index+1, item['_source']['product_name'])
-
-        response= [
-            {
-                "type": "text",
-                "text": "My Shopping List :\n\n{}".format(item_list)
-            }]
+        if len(item_list) != 0:
+            text_message = "My Shopping List : "
+        else:
+            text_message = "Add Something to the Shopping List!"
+        text_carousel_reply(event, text_message, item_list)
         
-        result_message_array =[TextSendMessage.new_from_json_dict(response[0])]
-        line_bot_api.reply_message(event.reply_token, result_message_array)
-        
-    # You might also like    
+    # （5）相關商品推薦（You might also like）    
     elif 'id' in query_string_dict:
         product_id = int(query_string_dict.get('id')[0])
         
         # item-based
         if (product_id in itembased_product_list) == True:
             query_id = model_itembased_rank[model_itembased_rank['product_id']== product_id].iloc[0,1:].to_list()
-            print("item-based")
             print(query_id)
-            if ( 0 in query_id) == True:
-                query_id = [product for product in query_id if (product != 0)]+ avg_rating  # ALS preditons average
-                print(query_id)
+            print("item-based")
+            if 0 in query_id:
+                query_id = [product for product in query_id if (product != 0)]+ list(avg_rating)  # ALS preditons average
                 print("item-based+ALS")
 
         # word2vec 
         else:
             query_id = [int(product[0]) for product in model.wv.most_similar(str(product_id))]
             print('word2vec')
-
-        query = {
-            "query": {
-                "bool": {
-                    "should": [
-                        { "match": { "product_id": { "query": query_id[0]} } },
-                        { "match": { "product_id": { "query": query_id[1]} } },
-                        { "match": { "product_id": { "query": query_id[2]} } },
-                        { "match": { "product_id": { "query": query_id[3]} } },
-                        { "match": { "product_id": { "query": query_id[4]} } }
-                    ]
-                }
-            }
-        }
-        
-        items = search(es, "products", query)
-        
-        item_list = []
-        for item in items:
-            item_list.append(item['_source']['info_for_line'])
-            if len(item_list)==5:
-                break
-        
-        response = [
-            {
-                "type": "text",
-                "text": "You may also like the products below! Check it out!"
-            },{
-                "type": "template",
-                "altText": "this is a carousel template",
-                "template": {
-                    "type": "carousel",
-                    "actions": [],
-                    "columns": item_list
-                }
-            }]
-        
-        result_message_array =[]
-        
-        for res in response:
             
-            message_type = res.get('type')
-            
-            if message_type == 'text':
-                result_message_array.append(TextSendMessage.new_from_json_dict(res))
-            elif message_type == 'template':
-                result_message_array.append(TemplateSendMessage.new_from_json_dict(res))
-        
-        line_bot_api.reply_message(event.reply_token, result_message_array)
+        text_message = "You may also like the products below! Check it out!"
+        item_list = general_carousel_query(es, query_id)
+        text_carousel_reply(event, text_message, item_list)
     
-    # Add to List    
+    # (6)Add to List    
     elif 'add' in query_string_dict:
-        
+
         user_profile = line_bot_api.get_profile(event.source.user_id)
         user_profile_dict = vars(user_profile)
-        print(user_profile_dict)
         user_id = user_profile_dict.get('user_id')
         
         product_id = int(query_string_dict.get('add')[0])
         product_name = str(query_string_dict.get('name')[0])
         
-        add = {"user_id": user_id, "product_id": product_id, "product_name":product_name}
+        query = {"query": {"bool": {"should": [{"match": {"product_id": {"query": product_id}}}]}}}
+        
+        result = search(es, 'products', query)[0]['_source']['info_for_line']
+        
+        info_for_line = {
+            
+            "thumbnailImageUrl": result['thumbnailImageUrl'],
+            "title": product_name,
+            "text": result['text'],
+            "actions": [{
+                "type": "uri",
+                "label": "More Info",
+                "uri": result['actions'][0]['uri']
+            },{
+                "type": "postback",
+                "label": "You May Also Like",
+                "data": "id="+ str(product_id)
+            },{
+                "type": "postback",
+                "label": "Remove from List",
+                "data": "remove="+ str(product_id)
+            }]
+        }
+        
+        add = {"user_id": user_id, "product_id": product_id, "product_name":product_name, "info_for_line": info_for_line}
         insert_doc(es, "shopping_list", add)
         
         response = [
@@ -375,6 +303,43 @@ def process_postback_event(event):
         
         result_message_array =[TextSendMessage.new_from_json_dict(response[0])]
         line_bot_api.reply_message(event.reply_token, result_message_array)
+        
+    # (7) 移除收藏
+    elif 'remove' in query_string_dict:
+        user_profile = line_bot_api.get_profile(event.source.user_id)
+        user_profile_dict = vars(user_profile)
+        user_id = user_profile_dict.get('user_id')
+        
+        product_id = query_string_dict.get('remove')[0]
+        
+        # 刪除清單中該筆商品資料
+        query = {
+            "size": 1, 
+            "query": {
+                "bool": {
+                    "should": [
+                        {"match": { "product_id": { "query": product_id}}},
+                        {"match": { "user_id": { "query": user_id}}}
+                    ]
+                }
+            }
+        }
+        
+        delete_id = search(es,'shopping_list', query)[0]['_id']
+        es.delete(index='shopping_list', id=delete_id)
+        
+        time.sleep(1)
+        
+        # 回覆使用者更新後的Shopping List
+        query = {"size": 100,"query": {"match": {"user_id": {"query": user_id}}}}
+        items = search(es, 'shopping_list', query)
+        item_list = [item['_source']['info_for_line'] for item in items]
+        
+        if len(item_list) != 0:
+            text_message = "My New Shopping List : "
+        else:
+            text_message = "Add Something to the Shopping List!"
+        text_carousel_reply(event, text_message, item_list)
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0')
